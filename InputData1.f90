@@ -114,7 +114,6 @@
 !.....VERSION 1.1
       CSYM (8 + NSPE) = 'H' 
       CSYM (9 + NSPE) = 'V' 
-!      CSYM (10 + NSPE) = 'K' 	  		!HYDCON
 !                                                                       
 !.....INPUT DATASET 8A: OUTPUT CONTROLS AND OPTIONS -- UNIT fLST          
       MSErrorValue%cDataSet=' 8A'
@@ -210,7 +209,6 @@
       LTpSW                    = .FALSE.
       LTpRho                   = .FALSE.
       LTpTotalHead             = .FALSE.
-!      LTpHydcon                = .FALSE.
       LTpVelocity              = .FALSE. 
       LTpPrintVelocityAtNodes  = .FALSE.
 !      
@@ -239,10 +237,8 @@
 !........VERSION 1.1
          IF(CH_K5COL(M) .EQ.'H') CSMSK5(MONSPE) = VARNK5(9) 
          IF(CH_K5COL(M) .EQ.'V') CSMSK5(MONSPE) = VARNK5(10) 
-!         IF(CH_K5COL(M) .EQ.'K') CSMSK5(MONSPE) = VARNK5(11) 		 !HYDCON 01/6/2017
-         !TEST IF UNSATURATED SOLUTION...IF NOT ELIMINATE SW FROM OUTPUT
-!         IF(CH_K5COL(M) .EQ.'S' .AND. .not.IUNSAT) MONSPE=MONSPE-1
-         IF(CH_K5COL(M) .EQ.'S' .AND. IUNSAT.NE.1) MONSPE=MONSPE-1		!MT: revised due to error during compiling with gfortran
+!TEST IF UNSATURATED SOLUTION...IF NOT ELIMINATE SW FROM OUTPUT
+         IF(CH_K5COL(M) .EQ.'S' .AND. IUNSAT.NE.1) MONSPE=MONSPE-1
 !........VERSION 1.1
 !........TEST FOR PRESENCE OF P, U, SW, RHO, OR TOTAL HEAD FOR TECPLOT                     
          IF(CH_K5COL(M) .EQ.'P')                   LTpP                     = .TRUE. 
@@ -253,7 +249,6 @@
          IF(CH_K5COL(M) .EQ.'H')                   LTpTotalHead             = .TRUE.
          IF(CH_K5COL(M) .EQ.'V')                   LTpVelocity              = .TRUE.
          IF(CH_K5COL(M) .EQ.'V')                   LTpPrintVelocityAtNodes  = .TRUE.
-!         IF(CH_K5COL(M) .EQ.'K')                   LTpHydcon                = .TRUE.		 
 !........TEST FOR DATA TERMINATION CHARACTER                            
          IF(CH_K5COL(M) .EQ.'-') THEN 
             NCOLS5 = MONSPE-1 
@@ -306,7 +301,6 @@
       IF(LTpRho)       NCOLS5=NCOLS5-1
       IF(LTpTotalHead) NCOLS5=NCOLS5-1
       IF(LTpVelocity)  NCOLS5=NCOLS5-1
-!      IF(LTpHydcon)  NCOLS5=NCOLS5-1	  		!HYDCON 01/6/2017
 !                                                                       
 !.....INPUT DATASET 8C: OUTPUT CONTROLS AND OPTIONS -- UNIT fELE          
       MSErrorValue%cDataSet=' 8C'
