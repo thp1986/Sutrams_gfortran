@@ -459,14 +459,7 @@
                 case (8)
                   ElevationHead = Z(n)
               end select
-              if (TSEC<=TSTART) then
-                RhoV = RHOW0 
-                do k = 1, nspe 
-                  RhoV = RhoV + DRWDU(k) * ( UVEC(n,k) - URHOW0(k) )                                                             
-                end do 
-              else
-                RhoV = RHO(n)
-              end if
+              RhoV = RHOW0 
               TotalHead(n)=( PVEC(n) / (RhoV * Gravity) ) + ElevationHead
             end do
             CalculateTotalHead=.true.
