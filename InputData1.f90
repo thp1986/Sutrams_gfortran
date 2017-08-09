@@ -114,6 +114,7 @@
 !.....VERSION 1.1
       CSYM (8 + NSPE) = 'H' 
       CSYM (9 + NSPE) = 'V' 
+!      CSYM (10 + NSPE) = 'K' 	  		!HYDCON
 !                                                                       
 !.....INPUT DATASET 8A: OUTPUT CONTROLS AND OPTIONS -- UNIT fLST          
       MSErrorValue%cDataSet=' 8A'
@@ -209,6 +210,7 @@
       LTpSW                    = .FALSE.
       LTpRho                   = .FALSE.
       LTpTotalHead             = .FALSE.
+!      LTpHydcon                = .FALSE.
       LTpVelocity              = .FALSE. 
       LTpPrintVelocityAtNodes  = .FALSE.
 !      
@@ -237,8 +239,10 @@
 !........VERSION 1.1
          IF(CH_K5COL(M) .EQ.'H') CSMSK5(MONSPE) = VARNK5(9) 
          IF(CH_K5COL(M) .EQ.'V') CSMSK5(MONSPE) = VARNK5(10) 
+!         IF(CH_K5COL(M) .EQ.'K') CSMSK5(MONSPE) = VARNK5(11) 		 !HYDCON 01/6/2017
          !TEST IF UNSATURATED SOLUTION...IF NOT ELIMINATE SW FROM OUTPUT
-         IF(CH_K5COL(M) .EQ.'S' .AND. IUNSAT.NE.1) MONSPE=MONSPE-1
+!         IF(CH_K5COL(M) .EQ.'S' .AND. .not.IUNSAT) MONSPE=MONSPE-1
+         IF(CH_K5COL(M) .EQ.'S' .AND. IUNSAT.NE.1) MONSPE=MONSPE-1		!MT: revised due to error during compiling with gfortran
 !........VERSION 1.1
 !........TEST FOR PRESENCE OF P, U, SW, RHO, OR TOTAL HEAD FOR TECPLOT                     
          IF(CH_K5COL(M) .EQ.'P')                   LTpP                     = .TRUE. 
@@ -249,6 +253,7 @@
          IF(CH_K5COL(M) .EQ.'H')                   LTpTotalHead             = .TRUE.
          IF(CH_K5COL(M) .EQ.'V')                   LTpVelocity              = .TRUE.
          IF(CH_K5COL(M) .EQ.'V')                   LTpPrintVelocityAtNodes  = .TRUE.
+!         IF(CH_K5COL(M) .EQ.'K')                   LTpHydcon                = .TRUE.		 
 !........TEST FOR DATA TERMINATION CHARACTER                            
          IF(CH_K5COL(M) .EQ.'-') THEN 
             NCOLS5 = MONSPE-1 
@@ -301,6 +306,7 @@
       IF(LTpRho)       NCOLS5=NCOLS5-1
       IF(LTpTotalHead) NCOLS5=NCOLS5-1
       IF(LTpVelocity)  NCOLS5=NCOLS5-1
+!      IF(LTpHydcon)  NCOLS5=NCOLS5-1	  		!HYDCON 01/6/2017
 !                                                                       
 !.....INPUT DATASET 8C: OUTPUT CONTROLS AND OPTIONS -- UNIT fELE          
       MSErrorValue%cDataSet=' 8C'
@@ -406,7 +412,13 @@
       SIGMAW = BSIGMAW 
       URHOW0 = BURHOW0 
       DRWDU = BDRWDU 
-      VISC0 = 0.00D0 
+      BVISC0 = BVISC0 
+!.....IF ENERGY TRANSPORT ONLY OR MULTISPECIES INCLUDING ENERGY TRANSPORT
+      IF (ME.GE.0) THEN 													
+         VISC0 (NESP) = 1                                                   
+         BVISC0 = 0.0D0                                                     
+      ENDIF                                                                 
+!      
 !.....INPUT DATASET 9B: MULTI SPECIES FLUID PROPERTIES                  
 !.....READ ADDITIONAL SIGMAW, URHOW0, DRWDU, AND VISC0 FOR              
 !     MULTIPLE SPECIES                                                  
@@ -427,12 +439,7 @@
 !.......CONTINUE READING DATASET 9B UNTIL K EQUALS ZERO                 
          GOTO 2000 
       ENDIF 
-!.....IF ENERGY TRANSPORT ONLY                                          
-      IF (ME.EQ.1) THEN 
-         VISC0 (NESP) = BVISC0 
-         BVISC0 = 0.0D0 
-      ENDIF 
-!                                                                       
+                                                                    
 !.....INPUT DATASET 10: SOLID MATRIX PROPERTIES                         
  2010 MSErrorValue%cDataSet=' 10'
       CALL SKPCOM (fINP, NLSKIP) 
@@ -536,8 +543,8 @@
           cViscosityEquation=trim(adjustl(cViscosityEquation))//' + (Viscosity Multiplier * SUTRA Temperature Function)'
           cViscosity=trim(adjustl(cViscosity))//' + ('//trim(adjustl(Val2Char(VISC0(k))))//' * SUTRA Temperature Function)'
         else
-          cViscosityEquation=trim(adjustl(cViscosityEquation))//' + &
-(dViscosity/d'//trim(adjustl(SPNAME(K)))//' * '//trim(adjustl(SPNAME(K)))//')'
+          cViscosityEquation=trim(adjustl(cViscosityEquation))//' &
++ (dViscosity/d'//trim(adjustl(SPNAME(K)))//' * '//trim(adjustl(SPNAME(K)))//')'
           cViscosity=trim(adjustl(cViscosity))//' + ('//trim(adjustl(Val2Char(VISC0(k))))//' * '//trim(adjustl(SPNAME(K)))//')'
         end if
       end do
@@ -604,8 +611,8 @@
   236   IF((trim(ADSMOD(K)) .EQ.'NONE') .OR.(trim(ADSMOD(K)) .EQ.'LINEAR') .OR. &
      &     (trim(ADSMOD(K)) .EQ.'FREUNDLICH') .OR.(trim(ADSMOD(K)) .EQ.'LANGMUIR') ) GOTO 238                                                     
         !Correct adsorption keywords not found
-        call ErrorIO('Error: unknown sorption type ['//trim(ADSMOD(K))//'&
-specifed for species '//trim(Val2Char(K))//' ['//trim(adjustl(SPNAME(K)))//']')
+        call ErrorIO('Error: unknown sorption type ['//trim(ADSMOD(K))//'specifed for species '//trim(Val2Char(K))//' &
+['//trim(adjustl(SPNAME(K)))//']')
 
   238   IF (trim(ADSMOD(K)) .EQ.'LINEAR') WRITE (fLST, 242) CHI1 (K) 
   242   FORMAT(11X,1PD15.4,5X,'LINEAR DISTRIBUTION COEFFICIENT') 
@@ -615,8 +622,8 @@ specifed for species '//trim(Val2Char(K))//' ['//trim(adjustl(SPNAME(K)))//']')
      &        /11X,1PD15.4,5X,'SECOND FREUNDLICH COEFFICIENT')               
 
         IF (trim(ADSMOD(K)) .EQ.'FREUNDLICH'.AND.CHI2 (K) .LE.0.D0) THEN 
-          call ErrorIO('Error: second sorption coefficient for species '&
-//trim(Val2Char(K))//' ['//trim(adjustl(SPNAME(K)))//'] must be greater than 0.0')
+          call ErrorIO('Error: second sorption coefficient for species '//trim(Val2Char(K))//' &
+['//trim(adjustl(SPNAME(K)))//'] must be greater than 0.0')
         ENDIF 
       IF (trim(ADSMOD(K)) .EQ.'LANGMUIR') WRITE (fLST, 246) CHI1(K) , CHI2(K)                                                                
   246 FORMAT(11X,1PD15.4,5X,'LANGMUIR DISTRIBUTION COEFFICIENT'         &
@@ -854,8 +861,8 @@ specifed for species '//trim(Val2Char(K))//' ['//trim(adjustl(SPNAME(K)))//']')
          DO 550 LL = 1, NE 
             READ(fINP,*,iostat=ios) L
             if(ios/=0) call ErrorIO('Error specifying element number - error on line ['//trim(Val2Char(LL))//'] of Data Set 15B')
-            if(L>NE)  call ErrorIO('Error: Specified element number &
-['//trim(Val2Char(L))//'] exceeds NE ['//trim(Val2Char(NE))//']')
+            if(L>NE)  call ErrorIO('Error: Specified element number ['//trim(Val2Char(L))//'] &
+exceeds NE ['//trim(Val2Char(NE))//']')
             backspace(fINP)
             if(fZON==0) then
               READ(fINP,*,iostat=ios) L, ElemMap(l), &
@@ -1010,8 +1017,8 @@ specifed for species '//trim(Val2Char(K))//' ['//trim(adjustl(SPNAME(K)))//']')
             Z(II) = Z(II) * SCALTH 
             if(fZON==0) NodeData(NodeMap(ii))%por = NodeData(NodeMap(ii))%por * PORFAC 
 !           SET SPECIFIC PRESSURE STORATIVITY, SOP.                           
-            if(fZON==0) NodeData(NodeMap(ii))%sop = (1.D0 - NodeData(NodeMap(ii))%por )&
- * NodeData(NodeMap(ii))%compma + NodeData(NodeMap(ii))%por * COMPFL 
+            if(fZON==0) NodeData(NodeMap(ii))%sop = (1.D0 - NodeData(NodeMap(ii))%por ) * &
+NodeData(NodeMap(ii))%compma + NodeData(NodeMap(ii))%por * COMPFL 
 
             IF(I.GT.1.AND.NodeMap(ii) .NE.NROLD) NRTEST = NRTEST + 1 
             NROLD = NodeMap(ii) 
@@ -1081,8 +1088,8 @@ specifed for species '//trim(Val2Char(K))//' ['//trim(adjustl(SPNAME(K)))//']')
          DO 1550 LL = 1, NE 
             READ(fINP,*,iostat=ios) L
             if(ios/=0) call ErrorIO('Error specifying element number - error on line ['//trim(Val2Char(LL))//'] of Data Set 15B')
-            if(L>NE)  call ErrorIO('Error: Specified element number ['//trim(Val2Char(L))//']&
- exceeds NE ['//trim(Val2Char(NE))//']')
+            if(L>NE)  call ErrorIO('Error: Specified element number ['//trim(Val2Char(L))//'] &
+exceeds NE ['//trim(Val2Char(NE))//']')
             backspace(fINP)
 
             if(fZON==0) then
@@ -1234,16 +1241,16 @@ specifed for species '//trim(Val2Char(K))//' ['//trim(adjustl(SPNAME(K)))//']')
          lModifyLambdas = .FALSE.
          CALL SKPCOM (fINP, NLSKIP) 
  1650    READ (fINP,*,iostat=ios) ILAMB 
-         if(ios/=0) call ErrorIO('&
-Error specifying element number for lambda modification.  Confirm that CEQ is either "AVERAGE" or "GEOMETRIC"')
-         if(ILAMB>NE)  call ErrorIO('Error: Specified element number &
- ['//trim(Val2Char(ILAMB))//'] exceeds NE ['//trim(Val2Char(NE))//']')
+         if(ios/=0) call ErrorIO('Error specifying element number for lambda &
+modification.  Confirm that CEQ is either "AVERAGE" or "GEOMETRIC"')
+         if(ILAMB>NE)  call ErrorIO('Error: Specified element number ['//trim(Val2Char(ILAMB))//'] &
+exceeds NE ['//trim(Val2Char(NE))//']')
 !.......TEST FOR TERMINATION OF DATASET 15D                             
          IF (ILAMB.EQ.0) GOTO 1655 
          BACKSPACE (fINP)
          if(fZON==0) READ (fINP,*,iostat=ios) ILAMB, ElemData(ElemMap(ILAMB))%lambdas
-         if(ios/=0) call ErrorIO('Error specifying lambda modification for species' &
-//trim(Val2Char(IMULT))//' ['//trim(SPNAME(IMULT))//']')
+         if(ios/=0) call ErrorIO('Error specifying lambda modification for species'//trim(Val2Char(IMULT))//'&
+ ['//trim(SPNAME(IMULT))//']')
          lModifyLambdas = .TRUE.
 
          GOTO 1650 
