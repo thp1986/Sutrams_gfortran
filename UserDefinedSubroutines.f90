@@ -21,6 +21,8 @@
                                SpecifiedPBC, &
                                MultiSpeciesBC
       USE SutraMSPrecision
+      USE M_TIDE
+
 
       IMPLICIT NONE
 
@@ -32,6 +34,8 @@
         I, IP, IU, IUP, IQP, IQU, &
         K, &
         NSOPI, NSOUI
+      REAL (DP) :: &
+	TDLEVEL
 
 !.....DEFINITION OF REQUIRED VARIABLES                                  
 ! . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
@@ -128,7 +132,23 @@
 !            TIME STEP IN WHICH PBC( ) CHANGES.                         
 !     SpecifiedPBC(IP)%P =  ((          ))                                         
 !     DO 150 K=1,NSPE                                                   
-! 150 SpecifiedPBC(IP)%U(K) =  ((          ))                                       
+! 150 SpecifiedPBC(IP)%U(K) =  ((          ))        
+!.....TIDAL ACTION
+	TDLEVEL=MSL+TAMP*SIN(2*3.1415926*TSEC/TPESEC)     
+	IF ((Y(IABS(I))).LE.TDLEVEL)THEN
+        	SpecifiedPBC(IP)%P = PBCRHO*9.81*(TDLEVEL-Y(IABS(I)))
+	ELSE 
+        	SpecifiedPBC(IP)%P = 0
+	ENDIF
+!.....TEMPERATURE
+      DO 150 K=1, NSPE
+      IF(K.EQ.1) THEN
+         SpecifiedPBC(IP)%U(K) = PBCTEMP
+!.....CONCENTRATION
+      ELSEIF(K.EQ.2) THEN
+            SpecifiedPBC(IP)%U(K) = PBCSAL
+      ENDIF
+  150 END DO   
   200 END DO 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 

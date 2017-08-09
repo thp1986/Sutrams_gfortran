@@ -441,5 +441,12 @@
           IBCT
       END MODULE SOURCEITEMS
 
+! ITEMS ADDED BY MT
+
+      MODULE M_TIDE
+         IMPLICIT NONE
+         DOUBLE PRECISION :: MSL, TAMP, TPESEC, PBCRHO, PBCTEMP, PBCSAL
+      END MODULE M_TIDE
+
 
                                                                       
