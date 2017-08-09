@@ -52,9 +52,10 @@
       real (DP) :: &
         CST, CWT, &
         RELK, &
-        STPTOT, STUT, QINTOT, QPLTOT, &
+        STPTOT, STUT, QINTOT, QPLTOT, QPLOUT, QPLIN, &
         DNSTOT, FLDTOT, P0FTOT, P1FTOT, P0STOT, P1STOT, &
         QIUTOT, QQUTOT, QPUTOT, QULTOT, SLDTOT, &
+	QPUOUT, QPUIN, &
         DUDT, EPRSV, ESRV, &
         QU, QPU
          
@@ -104,16 +105,20 @@
   100 END DO 
 !                                                                       
       QPLTOT = 0.D0 
+      QPLOUT = 0.D0 
+      QPLIN = 0.D0 
       DO 200 IP = 1, NPBC 
 !         I = IABS (IPBC (IP) ) 
 !         QPLITR (IP) = GNUP * (PBC (IP) - PVEC(I) ) 
          I = IABS ( SpecifiedPBC(IP)%node ) 
          QPLITR (IP) = GNUP * ( SpecifiedPBC(IP)%P - PVEC(I) ) 
-         QPLTOT = QPLTOT + QPLITR (IP) 
+	 QPLTOT = QPLTOT + QPLITR (IP) 
+         IF (QPLITR(IP).LT.0.0D0) QPLOUT = QPLOUT + QPLITR(IP)
+         IF (QPLITR(IP).GT.0.0D0) QPLIN = QPLIN + QPLITR(IP)
   200 END DO 
 !                                                                       
-!.....OUTPUT FLUID MASS BUDGET                                          
-      WRITE (fLST, 300) IT, STPTOT, QINTOT, QPLTOT 
+!.....OUTPUT FLUID MASS BUDGET                      
+      WRITE (fBUD, 300) IT, STPTOT, QINTOT, QPLTOT, QPLOUT, QPLIN 	  
   300 FORMAT(//11X,'F L U I D   M A S S   B U D G E T      AFTER TIME', &
      &   ' STEP ',I5,',     IN (MASS/SECOND)'///11X,1PD15.7,5X,         &
      &   'RATE OF CHANGE IN TOTAL STORED FLUID DUE TO PRESSURE CHANGE', &
@@ -121,13 +126,15 @@
      &   //11X,1PD15.7,5X,'TOTAL OF FLUID SOURCES AND SINKS, ',         &
      &   'NET INFLOW(+)/NET OUTFLOW(-)'/11X,1PD15.7,5X,                 &
      &   'TOTAL OF FLUID FLOWS AT POINTS OF SPECIFIED PRESSURE, ',      &
-     &   'NET INFLOW(+)/NET OUTFLOW(-)')                                
+     &   'NET INFLOW(+)/NET OUTFLOW(-)'/11X,1PD15.7,5X, 'NET OUTFLOW ', &
+     &   'AT POINTS OF SPECIFIED PRESSURE'/11X,1PD15.7,5X, 'NET ',      &
+     &   'INFLOW(+) AT POINTS OF SPECIFIED PRESSURE')                                
 !                                                                       
 !.....OUTPUT FLUID MASS BUDGET CHANGES DUE TO CHANGES                   
 !     IN CONCENTRATION                                                  
       DO 305 K = 1, NSPE
 
-  305 WRITE (fLST, 310) K, trim(adjustl(SPNAME(K))), STUNT (K), STUPT (K), STUTOT (K) 
+  305 WRITE (fBUD, 310) K, trim(adjustl(SPNAME(K))), STUNT (K), STUPT (K), STUTOT (K) 
   310 FORMAT(/11X,'[SPECIES ',I3,'] - ',A,/11X,1PD15.7,5X,            &
      &   'NEGATIVE RATE OF CHANGE IN STORED FLUID DUE U CHANGE',        &
      &   /11X,1PD15.7,5X,'POSITIVE RATE OF CHANGE IN STORED ',          &
@@ -145,18 +152,18 @@
          IF (INEGCT.EQ.1) WRITE (fLST, 350) 
   350 FORMAT(///22X,'TIME-DEPENDENT FLUID SOURCES OR SINKS'//22X,       &
      &   ' NODE',5X,'INFLOW(+)/OUTFLOW(-)'/37X,'  (MASS/SECOND)'//)     
-         WRITE (fLST, 450) - I, QIN ( - I) 
+         WRITE (fBUD, 450) - I, QIN ( - I) 
   450 FORMAT(18X,I9,10X,1PD15.7) 
   500 END DO 
 !                                                                       
   600 IF (NPBC.EQ.0) GOTO 800 
-      WRITE (fLST, 650) 
+      WRITE (fBUD, 650) 
   650 FORMAT(///22X,'FLUID SOURCES OR SINKS DUE TO SPECIFIED PRESSURES',&
      &   //22X,' NODE',5X,'INFLOW(+)/OUTFLOW(-)'/37X,'  (MASS/SECOND)'/)
       DO 700 IP = 1, NPBC 
 !         I = IABS ( IPBC (IP) ) 
          I = IABS ( SpecifiedPBC(IP)%node ) 
-         WRITE (fLST, 450) I, QPLITR (IP) 
+         WRITE (fBUD, 450) I, QPLITR (IP) 
   700 END DO 
 !                                                                       
 !.....CALCULATE COMPONENTS OF ENERGY OR SOLUTE MASS BUDGET              
@@ -168,7 +175,7 @@
          KSP = K 
 !                                                                       
 !.....WRITE SPECIES INFORMATION TO OUTPUT FILE                          
-         WRITE (fLST, 1010) K, trim(adjustl(SPNAME(K)))
+         WRITE (fBUD, 1010) K, trim(adjustl(SPNAME(K)))		 
  1010 FORMAT(//11X,'[SPECIES ',I3,'] - ',A) 
 !                                                                       
 !.....ZERO VARIABLE FOR MASS BALANCE CALCULATIONS                       
@@ -222,12 +229,16 @@
 !                                                                       
 !.....MASS CHANGES DUE TO SPECIFIED PRESSURES                           
          QPUTOT = 0.D0 
+         QPUOUT = 0.D0 
+         QPUIN = 0.D0 
          DO 1500 IP = 1, NPBC 
             IF (QPLITR (IP) ) 1400, 1400, 1450 
  1400       I = IABS ( SpecifiedPBC(IP)%node ) 
             QPUTOT = QPUTOT + QPLITR (IP) * CW * UVEC(I, K) 
+	    QPUOUT = QPUOUT + QPLITR (IP) * CW * UVEC(I, K) 
             GOTO 1500 
  1450       QPUTOT = QPUTOT + QPLITR (IP) * CW * SpecifiedPBC(IP)%U(K) 
+	    QPUIN = QPUIN + QPLITR (IP) * CW * SpecifiedPBC(IP)%U(K) 
  1500    END DO 
 !                                                                       
 !.....MASS CHANGES DUE TO SPECIFIED CONCENTRATIONS                      
@@ -243,8 +254,8 @@
  1540    IF (K.EQ.NESP) GOTO 1615 
 !                                                                       
 !.....OUTPUT SOLUTE MASS BUDGET                                         
- 1550    WRITE (fLST, 1600) IT, FLDTOT, SLDTOT, DNSTOT, P1FTOT, P1STOT,   &
-         P0FTOT, P0STOT, QIUTOT, QPUTOT, QQUTOT, QULTOT                 
+ 1550    WRITE (fBUD, 1600) IT, FLDTOT, SLDTOT, DNSTOT, P1FTOT, P1STOT,   &
+         P0FTOT, P0STOT, QIUTOT, QPUTOT, QPUIN, QPUOUT, QQUTOT, QULTOT  	 
  1600 FORMAT(//11X,'S O L U T E   B U D G E T      AFTER TIME STEP ',I5,&
      &   ',   IN (SOLUTE MASS/SECOND)'///11X,1PD15.7,5X,'NET RATE OF ', &
      &   'INCREASE(+)/DECREASE(-) OF SOLUTE DUE TO CONCENTRATION CHANGE'&
@@ -259,14 +270,18 @@
      &   'NET GAIN(+)/LOSS(-) OF SOLUTE THROUGH FLUID SOURCES AND SINKS'&
      &   /11X,1PD15.7,5X,'NET GAIN(+)/LOSS(-) OF SOLUTE THROUGH ',      &
      &   'INFLOWS OR OUTFLOWS AT POINTS OF SPECIFIED PRESSURE'          &
+     &   /11X,1PD15.7,5X,'NET GAIN(+) OF SOLUTE THROUGH ',              &
+     &   'INFLOWS AT POINTS OF SPECIFIED PRESSURE'                      &
+     &   /11X,1PD15.7,5X,'NET LOSS(-) OF SOLUTE THROUGH ',              &
+     &   'OUTFLOWS AT POINTS OF SPECIFIED PRESSURE'                     &
      &   /11X,1PD15.7,5X,'NET GAIN(+)/LOSS(-) OF SOLUTE THROUGH ',      &
      &   'SOLUTE SOURCES AND SINKS'/11X,1PD15.7,5X,'NET GAIN(+)/LOSS(-)'&
      &  ,' OF SOLUTE AT POINTS OF SPECIFIED CONCENTRATION')             
          GOTO 1645 
 !                                                                       
 !.....OUTPUT ENERGY BUDGET                                              
- 1615    WRITE (fLST, 1635) IT, FLDTOT, SLDTOT, DNSTOT, P0FTOT, P0STOT,   &
-         QIUTOT, QPUTOT, QQUTOT, QULTOT                                 
+ 1615    WRITE (fBUD, 1635) IT, FLDTOT, SLDTOT, DNSTOT, P0FTOT, P0STOT,   &
+         QIUTOT, QPUTOT, QQUTOT, QULTOT                  
  1635 FORMAT(//11X,'E N E R G Y   B U D G E T      AFTER TIME STEP ',I5,&
      &   ',   IN (ENERGY/SECOND)'///11X,1PD15.7,5X,'NET RATE OF ',      &
      &   'INCREASE(+)/DECREASE(-) OF ENERGY IN FLUID DUE TO TEMPERATURE'&
@@ -286,12 +301,12 @@
  1645    NSOPI = NSOP - 1 
          IF (NSOPI.EQ.0) GOTO 2000 
          IF (ME) 1649, 1649, 1659 
- 1649    WRITE (fLST, 1650) 
+ 1649    WRITE (fBUD, 1650)  
  1650 FORMAT(///22X,'SOLUTE SOURCES OR SINKS AT FLUID SOURCES AND ',    &
      &   'SINKS'//22X,' NODE',8X,'SOURCE(+)/SINK(-)'/32X,               &
      &   '(SOLUTE MASS/SECOND)'/)                                       
          GOTO 1680 
- 1659    WRITE (fLST, 1660) 
+ 1659    WRITE (fBUD, 1660) 
  1660 FORMAT(///22X,'ENERGY SOURCES OR SINKS AT FLUID SOURCES AND ',    &
      &   'SINKS'//22X,' NODE',8X,'SOURCE(+)/SINK(-)'/37X,               &
      &   '(ENERGY/SECOND)'/)                                            
@@ -301,17 +316,17 @@
  1700       QU = QIN(I) * CW * UVEC(I, K) 
             GOTO 1800 
  1750       QU = QIN(I) * CW * UIN(I, K) 
- 1800       WRITE (fLST, 450) I, QU 
+ 1800       WRITE (fBUD, 450) I, QU 
  1900    END DO 
 !                                                                       
  2000    IF (NPBC.EQ.0) GOTO 4500 
          IF (ME) 2090, 2090, 2150 
- 2090    WRITE (fLST, 2100) 
+ 2090    WRITE (fBUD, 2100) 
  2100 FORMAT(///22X,'SOLUTE SOURCES OR SINKS DUE TO FLUID INFLOWS OR ', &
      &   'OUTFLOWS AT POINTS OF SPECIFIED PRESSURE'//22X,' NODE',8X,    &
      &   'SOURCE(+)/SINK(-)'/32X,'(SOLUTE MASS/SECOND)'/)               
          GOTO 2190 
- 2150    WRITE (fLST, 2160) 
+ 2150    WRITE (fBUD, 2160) 
  2160 FORMAT(///22X,'ENERGY SOURCES OR SINKS DUE TO FLUID INFLOWS OR ', &
      &   'OUTFLOWS AT POINTS OF SPECIFIED PRESSURE'//22X,' NODE',8X,    &
      &   'SOURCE(+)/SINK(-)'/37X,'(ENERGY/SECOND)'/)                    
@@ -321,7 +336,7 @@
  2200       QPU = QPLITR (IP) * CW * UVEC(I, K) 
             GOTO 2300 
  2250       QPU = QPLITR (IP) * CW * SpecifiedPBC(IP)%U(K) 
- 2300       WRITE (fLST, 450) I, QPU 
+ 2300       WRITE (fBUD, 450) I, QPU 
  2400    END DO 
 !                                                                       
          IF (IBCT.EQ.4) GOTO 4500 
@@ -340,18 +355,18 @@
  3465 FORMAT(///22X,'TIME-DEPENDENT ENERGY SOURCES AND SINKS'//22X,     &
      &   ' NODE',10X,'GAIN(+)/LOSS(-)'/35X,'  (ENERGY/SECOND)'//)       
  3475       CONTINUE 
-            WRITE (fLST, 3490) - I, QUIN ( - I, K) 
+            WRITE (fBUD, 3490) - I, QUIN ( - I, K) 
  3490 FORMAT(22X,I9,10X,1PD15.7) 
  3500    END DO 
 !                                                                       
  4500    IF (NUBC (K) .EQ.0) GOTO 5000 
          IF (K.EQ.NESP) GOTO 4610 
- 4600    WRITE (fLST, 4650) 
+ 4600    WRITE (fBUD, 4650) 
  4650 FORMAT(///22X,'SOLUTE SOURCES OR SINKS DUE TO SPECIFIED ',        &
      &   'CONCENTRATIONS'//22X,' NODE',10X,'GAIN(+)/LOSS(-)'/30X,       &
      &   '  (SOLUTE MASS/SECOND)'/)                                     
          GOTO 4690 
- 4610    WRITE (fLST, 4660) 
+ 4610    WRITE (fBUD, 4660) 
  4660 FORMAT(///22X,'ENERGY SOURCES OR SINKS DUE TO SPECIFIED ',        &
      &   'TEMPERATURES'//22X,' NODE',10X,'GAIN(+)/LOSS(-)'/35X,         &
      &   '  (ENERGY/SECOND)'/)                                          
@@ -359,7 +374,7 @@
          DO 4700 IU = 1, NUBC (K) 
             IUP = IU + NPBC 
             I = IABS ( MultiSpeciesBC(K)%SpecifiedU(IU)%node ) 
-            WRITE (fLST, 450) I, QPLITR (IUP) 
+            WRITE (fBUD, 450) I, QPLITR (IUP) 
  4700    END DO 
 !                                                                       
  5000 END DO 

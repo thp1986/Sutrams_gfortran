@@ -134,6 +134,10 @@
          case ('TPE')
            fTPE = IU
            cTPE = FN
+!.......BUDGET OUTPUT 
+         case ('BUD')
+           fBUD = IU
+           cBUD = FN
          case default
             goto 100
       end select

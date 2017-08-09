@@ -37,6 +37,7 @@
         INTEGER (I4B)                     :: fTBC, fGTP
         INTEGER (I4B)                     :: fOTM, fATS, fZON, fSOB
         INTEGER (I4B)                     :: fTPN, fTPE  !VERSION 1.1
+	INTEGER (I4B)                     :: fBUD
         INTEGER (I4B), PARAMETER          :: NKFLE=20
         INTEGER (I4B)                     :: n_onunit=19
         PUBLIC  :: &
@@ -50,6 +51,7 @@
                 fSMY,fSutraFil,&
                 fINP,fICS,fLST,fRST,fNOD,fELE,fOBS,&
                 fTBC,fGTP,fOTM,fATS,fZON,fSOB, &
+		fBUD, &
                 NKFLE, &
                 n_onunit, &
                 FindOpenUnit, &
